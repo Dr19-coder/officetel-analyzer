@@ -662,9 +662,13 @@ with tab2:
             _col_idx = 4  # base ADR = 100% 열 (adr*0.6부터 시작해 5번째)
 
             with plt.style.context("dark_background"):
-                fig_risk, ax_risk = plt.subplots(figsize=(7, 4))
+                fig_risk = plt.figure(figsize=(7, 5))
+                gs = fig_risk.add_gridspec(2, 1, height_ratios=[12, 1], hspace=0.55)
+                ax_risk = fig_risk.add_subplot(gs[0])
+                ax_cbar = fig_risk.add_subplot(gs[1])
                 fig_risk.patch.set_facecolor("#0e1117")
                 ax_risk.set_facecolor("#0e1117")
+                ax_cbar.set_facecolor("#0e1117")
                 sns.heatmap(
                     _sensitivity_df.astype(float),
                     annot=True,
@@ -673,7 +677,7 @@ with tab2:
                     center=10,
                     vmin=-10,
                     vmax=30,
-                    cbar_kws={"label": "연수익률(IRR) %"},
+                    cbar=False,
                     annot_kws={"size": 8},
                     ax=ax_risk,
                 )
@@ -685,7 +689,15 @@ with tab2:
                 ax_risk.set_ylabel("연 예약률", rotation=0, labelpad=40, va="center")
                 ax_risk.set_title("리스크 지형도 (흰 테두리 = 내 시나리오)", pad=10)
                 ax_risk.set_yticklabels(ax_risk.get_yticklabels(), rotation=0)
-                plt.tight_layout()
+                # 가로 컬러바 — 빨강(손실) 왼쪽, 초록(수익) 오른쪽
+                cb = fig_risk.colorbar(
+                    ax_risk.collections[0], cax=ax_cbar, orientation="horizontal"
+                )
+                cb.set_label(
+                    "← 손실 (빨강)          연수익률(IRR) %          수익 (초록) →",
+                    color="white", fontsize=8,
+                )
+                ax_cbar.xaxis.set_tick_params(labelcolor="white", labelsize=7)
 
             st.pyplot(fig_risk)
             plt.close(fig_risk)
