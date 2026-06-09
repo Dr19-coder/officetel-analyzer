@@ -10,6 +10,7 @@ import inspect
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import colors as mcolors
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
@@ -654,38 +655,59 @@ with tab2:
         try:
             _sensitivity_df = run_sensitivity_analysis(_sens_params, _sens_mortgage, mode="str")
 
-            # 내 시나리오 위치 계산
+            # 내 시나리오 위치
             _occ_range = np.arange(0.30, 1.00, 0.05)
             _row_idx = int(np.argmin(np.abs(_occ_range - user_occupancy)))
             _col_idx = 4  # base ADR = 100% 열
 
-            # 내 시나리오 셀 테두리 강조
-            def _mark_user_cell(df):
-                styles = pd.DataFrame("", index=df.index, columns=df.columns)
-                styles.iloc[_row_idx, _col_idx] = (
-                    "outline: 3px solid #4fc3f7; outline-offset: -3px; font-weight: bold;"
-                )
-                return styles
+            # ── HTML 테이블로 렌더링 (셀 정사각형 + 스크롤 없음) ──
+            _cmap = plt.get_cmap("RdYlGn")
+            _norm = mcolors.Normalize(vmin=-10, vmax=30)
+            _cell = 48  # 셀 한 변 px
 
-            styled_map = (
-                _sensitivity_df.style
-                .background_gradient(cmap="RdYlGn", axis=None, vmin=-10, vmax=30)
-                .apply(_mark_user_cell, axis=None)
-                .format("{:.1f}")
+            def _td(val, i, j):
+                rgba = _cmap(_norm(float(val)))
+                bg = mcolors.to_hex(rgba)
+                lum = 0.299 * rgba[0] + 0.587 * rgba[1] + 0.114 * rgba[2]
+                fg = "#000" if lum > 0.45 else "#fff"
+                is_user = (i == _row_idx and j == _col_idx)
+                border = "border:4px solid #000;z-index:1;" if is_user else "border:1px solid #e0e0e0;"
+                fw = "bold" if is_user else "normal"
+                return (
+                    f'<td style="width:{_cell}px;height:{_cell}px;min-width:{_cell}px;'
+                    f'background:{bg};color:{fg};text-align:center;vertical-align:middle;'
+                    f'font-size:11px;font-weight:{fw};{border}">{val:.1f}</td>'
+                )
+
+            th_style = (
+                f"width:{_cell}px;height:{_cell}px;min-width:{_cell}px;"
+                "text-align:center;font-size:10px;padding:2px;font-weight:normal;"
+            )
+            idx_style = "text-align:right;font-size:10px;padding:0 6px;white-space:nowrap;"
+
+            header = "".join(
+                f'<th style="{th_style}">{c}</th>'
+                for c in _sensitivity_df.columns
+            )
+            body = ""
+            for i, (idx_label, row) in enumerate(_sensitivity_df.iterrows()):
+                cells = "".join(_td(v, i, j) for j, v in enumerate(row))
+                body += f'<tr><th style="{idx_style}">{idx_label}</th>{cells}</tr>'
+
+            html_table = (
+                '<div style="overflow-x:auto;">'
+                '<table style="border-collapse:collapse;font-family:sans-serif;">'
+                f'<tr><th style="{idx_style}"></th>{header}</tr>'
+                f'{body}'
+                '</table></div>'
             )
 
-            # 범례 + 테이블을 나란히 배치
             st.markdown(
-                "<small>🔴 빨강 = 손실&nbsp;&nbsp;&nbsp;"
-                "🟡 노랑 = 본전 수준&nbsp;&nbsp;&nbsp;"
-                "🟢 초록 = 수익 우수&nbsp;&nbsp;&nbsp;"
-                "│&nbsp;&nbsp;&nbsp;**파란 테두리 = 내 시나리오**</small>",
+                "<small>🔴 빨강 = 손실 &nbsp;|&nbsp; 🟡 노랑 = 본전 &nbsp;|&nbsp; "
+                "🟢 초록 = 수익 우수 &nbsp;|&nbsp; <b>굵은 검정 테두리 = 내 시나리오</b></small>",
                 unsafe_allow_html=True,
             )
-
-            tbl_col, _ = st.columns([2, 1])
-            with tbl_col:
-                st.dataframe(styled_map, use_container_width=True)
+            st.markdown(html_table, unsafe_allow_html=True)
 
             irr_str = f"{str_irr:.1f}%" if str_irr not in [None, -100.0] else "전손실"
             st.caption(
