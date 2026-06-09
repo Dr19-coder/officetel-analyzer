@@ -24,8 +24,12 @@ from mortgage import cpm_schedule, annual_debt_service
 from data_fetcher import fetch_officetel_trade, fetch_officetel_rent
 from judge_property import judge_property
 
-# ── 한글 폰트 설정 ──────────────────────────────────────────
-plt.rcParams["font.family"] = "Malgun Gothic"
+# ── 한글 폰트 설정 (Windows: Malgun Gothic / Linux·Cloud: NanumGothic) ──
+import platform
+if platform.system() == "Windows":
+    plt.rcParams["font.family"] = "Malgun Gothic"
+else:
+    plt.rcParams["font.family"] = "NanumGothic"
 plt.rcParams["axes.unicode_minus"] = False
 
 # ── 페이지 설정 ─────────────────────────────────────────────
