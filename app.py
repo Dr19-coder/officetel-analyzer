@@ -111,7 +111,7 @@ def fetch_recent_data(lawd_cd: str, months: int = 6):
 # 탭 구성 (3개)
 # ═══════════════════════════════════════════════════════════
 
-tab1, tab2, tab3 = st.tabs(["📊 시세 둘러보기", "🎯 내 매물 판정", "🔥 민감도·리스크"])
+tab1, tab2, tab3 = st.tabs(["📊 시세 둘러보기", "🎯 내 매물 판정", "⚖️ 법적 리스크"])
 
 
 # ═══════════════════════════════════════════════════════════
@@ -280,6 +280,18 @@ with tab1:
 with tab2:
     st.subheader("🎯 내 매물 판정 - 에어비앤비 해도 될까?")
 
+    with st.expander("💬 용어가 헷갈린다면? (처음이신 분 필독)"):
+        st.markdown("""
+| 용어 | 쉬운 설명 |
+|------|-----------|
+| **1박 요금 (ADR)** | 에어비앤비에 올릴 1박 가격. 인근 유사 매물을 검색해 참고하세요. |
+| **예약률 (점유율)** | 1년 365일 중 실제 예약이 차는 날의 비율. 예: 60% = 연 219일, 월 평균 18일 예약. 제주 55%, 홍대 85% 수준. |
+| **에어비앤비 연수익률 (STR IRR)** | 내가 투자한 돈(자기자본) 대비 1년 평균 수익률. **15% 이상이면 우수**, 5% 미만이면 그냥 예금이 낫습니다. |
+| **일반임대 연수익률 (LTR IRR)** | 같은 매물을 월세로 놓을 때의 연수익률. 비교 기준입니다. |
+| **월 최소 예약일 (손익분기)** | 한 달에 며칠 이상 예약이 차야 일반임대보다 더 버는지. 이 날수를 못 채우면 그냥 월세를 받는 게 낫습니다. |
+| **LTV** | 매입가 대비 대출 비율. LTV 60% = 3억짜리 오피스텔이면 1.8억 대출. |
+""")
+
     # 그룹 선택
     st.markdown("### 1️⃣ 비교 지역 선택")
     group_choice = st.radio(
@@ -374,20 +386,20 @@ with tab2:
     with input_col2:
         st.markdown("#### 🏠 단기임대 시나리오")
         user_adr = st.number_input(
-            "예상 ADR (원/박)",
+            "1박 숙박 요금 (원)",
             min_value=30_000,
             max_value=300_000,
             value=int(region_info["airbnb_adr"]),
             step=5_000,
             format="%d",
-            help="3만원~30만원 범위. 직접 조사한 1박 평균요금을 입력하세요.",
+            help="ADR: 에어비앤비에 올릴 1박 가격. 인근 유사 매물 검색 또는 위 airbtics 시세 버튼을 참고하세요.",
         )
         user_occupancy = st.slider(
-            "예상 점유율 (%)",
+            "연간 예약률 (%)",
             30,
             95,
             int(region_info["occupancy"] * 100),
-            help="30~95% 범위. 본인이 예상하는 연평균 점유율입니다.",
+            help="1년 365일 중 예약이 차는 날의 비율. 예: 60% = 연 219일, 월 18일. 처음이라면 지역 평균보다 10%p 낮게 잡는 게 안전합니다.",
         ) / 100
         user_cleaning_fee = st.number_input(
             "건당 청소비 (원)",
@@ -457,6 +469,7 @@ with tab2:
     st.session_state["user_loan_years"] = user_loan_years
     st.session_state["user_hold_years"] = user_hold_years
     st.session_state["user_adr"] = user_adr
+    st.session_state["user_occupancy"] = user_occupancy
     st.session_state["user_cleaning_fee"] = user_cleaning_fee
     st.session_state["user_setup_cost"] = user_setup_cost
 
@@ -569,161 +582,153 @@ with tab2:
 
         st.write(judgment["reason"])
 
-        # 상세 지표
+        # 핵심 수치 (평어)
         st.markdown("---")
-        st.markdown("### 📊 상세 지표")
+        st.markdown("### 📊 핵심 수치")
 
-        metric_col1, metric_col2, metric_col3 = st.columns(3)
+        ltr_irr = ltr_dcf["irr"]
+        breakeven_days_month = breakeven_occupancy * 365 / 12
 
-        with metric_col1:
-            st.metric("STR IRR", f"{str_irr:.1f}%" if str_irr not in [None, -100.0] else "전손실")
-            st.metric("STR 연NOI", f"{str_noi/10000:,.0f}만원")
-            st.metric("STR 셋업비", f"{user_setup_cost/10000:,.0f}만원")
-
-        with metric_col2:
-            ltr_irr = ltr_dcf["irr"]
-            st.metric("LTR IRR", f"{ltr_irr:.1f}%" if ltr_irr not in [None, -100.0] else "전손실")
-            st.metric("LTR 연NOI", f"{ltr_noi/10000:,.0f}만원")
-
-        with metric_col3:
-            st.metric("손익분기", f"{breakeven_occupancy*100:.0f}%")
-            st.metric("예상 점유율", f"{user_occupancy*100:.0f}%")
+        mc1, mc2, mc3 = st.columns(3)
+        with mc1:
+            irr_display = f"{str_irr:.1f}%" if str_irr not in [None, -100.0] else "전손실"
+            st.metric("에어비앤비 연수익률", irr_display)
+            st.caption("내 투자금 대비 연평균 수익률. 15% 이상이면 우수")
+        with mc2:
+            st.metric("월 최소 예약일", f"{breakeven_days_month:.1f}일")
+            st.caption(f"한 달에 이 날수 이상 예약이 차야 일반임대보다 이득")
+        with mc3:
+            ltr_display = f"{ltr_irr:.1f}%" if ltr_irr not in [None, -100.0] else "전손실"
+            st.metric("일반임대 연수익률", ltr_display)
+            st.caption("같은 매물을 월세로 놓을 때의 수익률 (비교용)")
 
         # 시세 비교
         st.markdown("---")
-        st.markdown("### 💰 시세 비교")
-
         adr_diff = (user_adr / region_info["airbnb_adr"] - 1) * 100
         occ_diff = (user_occupancy / region_info["occupancy"] - 1) * 100
 
         comp_col1, comp_col2 = st.columns(2)
-
         with comp_col1:
             if adr_diff > 0:
-                st.info(f"📈 입력 ADR이 {selected_region} 시세보다 {adr_diff:.1f}% 높습니다.")
+                st.info(f"📈 입력 요금이 {selected_region} 시세보다 {adr_diff:.1f}% 높습니다.")
             elif adr_diff < -10:
-                st.warning(f"📉 입력 ADR이 {selected_region} 시세보다 {abs(adr_diff):.1f}% 낮습니다. 경쟁력을 점검하세요.")
+                st.warning(f"📉 입력 요금이 {selected_region} 시세보다 {abs(adr_diff):.1f}% 낮습니다. 경쟁력을 점검하세요.")
             else:
-                st.success(f"✓ 입력 ADR이 {selected_region} 시세와 비슷합니다.")
-
+                st.success(f"✓ 입력 요금이 {selected_region} 시세와 비슷합니다.")
         with comp_col2:
             if occ_diff > 0:
-                st.info(f"📈 예상 점유율이 {selected_region} 평균보다 {occ_diff:.1f}%p 높습니다.")
+                st.info(f"📈 예상 예약률이 {selected_region} 평균보다 {occ_diff:.1f}%p 높습니다.")
             elif occ_diff < -10:
-                st.warning(f"📉 예상 점유율이 {selected_region} 평균보다 {abs(occ_diff):.1f}%p 낮습니다. 보수적 가정입니다.")
+                st.warning(f"📉 예상 예약률이 {selected_region} 평균보다 {abs(occ_diff):.1f}%p 낮습니다.")
             else:
-                st.success(f"✓ 예상 점유율이 {selected_region} 평균과 비슷합니다.")
+                st.success(f"✓ 예상 예약률이 {selected_region} 평균과 비슷합니다.")
+
+        # 리스크 지형도 (히트맵 + ★ 내 시나리오)
+        st.markdown("---")
+        st.markdown("### 📍 리스크 지형도 — 예약률·요금이 달라지면?")
+        st.caption(
+            "가로축: 내 1박 요금 기준 ±범위 시나리오 | "
+            "세로축: 연 예약률 | "
+            "숫자: 에어비앤비 연수익률(%) | "
+            "**흰 테두리 = 내 시나리오**"
+        )
+
+        _sens_params = {
+            "adr": user_adr,
+            "cleaning_fee": user_cleaning_fee,
+            "platform_fee": 0.10,
+            "opex_fixed": 2_000_000,
+            "purchase_price": user_purchase_price,
+            "ltv": user_ltv,
+            "hold_years": user_hold_years,
+            "tax_rate": 0.35,
+            "cap_rate": 0.05,
+            "building_ratio": 0.80,
+            "setup_cost": user_setup_cost,
+        }
+        _sens_mortgage = {
+            "principal": user_purchase_price * user_ltv,
+            "annual_rate": user_loan_rate,
+            "loan_years": user_loan_years,
+        }
+
+        try:
+            import matplotlib.patches as mpatches
+            _sensitivity_df = run_sensitivity_analysis(_sens_params, _sens_mortgage, mode="str")
+
+            # 내 시나리오 위치 계산
+            _occ_range = np.arange(0.30, 1.00, 0.05)
+            _row_idx = int(np.argmin(np.abs(_occ_range - user_occupancy)))
+            _col_idx = 4  # base ADR = 100% 열 (adr*0.6부터 시작해 5번째)
+
+            with plt.style.context("dark_background"):
+                fig_risk, ax_risk = plt.subplots(figsize=(7, 4))
+                fig_risk.patch.set_facecolor("#0e1117")
+                ax_risk.set_facecolor("#0e1117")
+                sns.heatmap(
+                    _sensitivity_df.astype(float),
+                    annot=True,
+                    fmt=".1f",
+                    cmap="RdYlGn",
+                    center=10,
+                    vmin=-10,
+                    vmax=30,
+                    cbar_kws={"label": "연수익률(IRR) %"},
+                    annot_kws={"size": 8},
+                    ax=ax_risk,
+                )
+                ax_risk.add_patch(mpatches.Rectangle(
+                    (_col_idx, _row_idx), 1, 1,
+                    fill=False, edgecolor="white", lw=2.5, zorder=5,
+                ))
+                ax_risk.set_xlabel("1박 요금 시나리오")
+                ax_risk.set_ylabel("연 예약률", rotation=0, labelpad=40, va="center")
+                ax_risk.set_title("리스크 지형도 (흰 테두리 = 내 시나리오)", pad=10)
+                ax_risk.set_yticklabels(ax_risk.get_yticklabels(), rotation=0)
+                plt.tight_layout()
+
+            st.pyplot(fig_risk)
+            plt.close(fig_risk)
+            irr_str = f"{str_irr:.1f}%" if str_irr not in [None, -100.0] else "전손실"
+            st.caption(
+                f"내 시나리오: 요금 {user_adr/10000:.1f}만원, 예약률 {user_occupancy*100:.0f}% → 연수익률 {irr_str}  |  "
+                f"초록 영역이 넓을수록 웬만큼 빗나가도 수익이 나는 안전한 투자입니다."
+            )
+        except Exception as e:
+            st.warning(f"리스크 지형도 계산 실패: {e}")
 
 
 # ═══════════════════════════════════════════════════════════
-# 탭3: 민감도·리스크
+# 탭3: 법적 리스크
 # ═══════════════════════════════════════════════════════════
 
 with tab3:
-    st.subheader("🔥 민감도 분석 & 법적 리스크")
-
-    st.markdown("### 📉 점유율 × ADR 민감도 분석 (STR IRR %)")
-
-    st.info(
-        "**이 표 읽는 법**\n\n"
-        "- **가로축**: 탭2에서 입력한 ADR 기준으로 ±범위의 요금 시나리오\n"
-        "- **세로축**: 연평균 점유율 (30% ~ 95%)\n"
-        "- **숫자**: 해당 조합에서 계산된 STR IRR(%) — 탭2의 매입가·대출 조건 기준\n\n"
-        "**색상 기준** → 🟢 초록(IRR 15% 이상, 추천) / 🟡 노랑(5~15%, 신중) / 🔴 빨강(5% 미만, 비추천)\n\n"
-        "**활용법**: 내 예상 ADR과 점유율이 교차하는 셀을 찾아 색상을 확인하세요. "
-        "주변 셀이 전부 빨간색이면 가정이 조금만 빗나가도 손실 — 리스크가 큰 투자입니다."
-    )
-
-    # 민감도 분석용 파라미터 (탭2 입력값 사용 또는 기본값)
-    sens_purchase = st.session_state.get("user_purchase_price", 300_000_000)
-    sens_ltv = st.session_state.get("user_ltv", 0.60)
-    sens_loan_rate = st.session_state.get("user_loan_rate", 0.045)
-    sens_loan_years = st.session_state.get("user_loan_years", 20)
-    sens_hold_years = st.session_state.get("user_hold_years", 5)
-    sens_adr = st.session_state.get("user_adr", 100_000)
-    sens_cleaning_fee = st.session_state.get("user_cleaning_fee", 20_000)
-    sens_setup_cost = st.session_state.get("user_setup_cost", 7_000_000)
-
-    st.caption(
-        f"기준값: 매입가 {sens_purchase/100_000_000:.2f}억 · "
-        f"ADR {sens_adr/10000:.1f}만원 · 셋업비 {sens_setup_cost/10000:.0f}만원 "
-        "(탭2 입력값 반영, 미입력 시 기본값 사용)"
-    )
-
-    sens_params = {
-        "adr": sens_adr,
-        "cleaning_fee": sens_cleaning_fee,
-        "platform_fee": 0.10,
-        "opex_fixed": 2_000_000,
-        "purchase_price": sens_purchase,
-        "ltv": sens_ltv,
-        "hold_years": sens_hold_years,
-        "tax_rate": 0.35,
-        "cap_rate": 0.05,
-        "building_ratio": 0.80,
-        "setup_cost": sens_setup_cost,
-    }
-
-    sens_mortgage = {
-        "principal": sens_purchase * sens_ltv,
-        "annual_rate": sens_loan_rate,
-        "loan_years": sens_loan_years,
-    }
-
-    try:
-        sensitivity_df = run_sensitivity_analysis(sens_params, sens_mortgage, mode="str")
-
-        with plt.style.context("dark_background"):
-            fig_sens, ax_sens = plt.subplots(figsize=(7, 4))
-            fig_sens.patch.set_facecolor("#0e1117")
-            ax_sens.set_facecolor("#0e1117")
-            sns.heatmap(
-                sensitivity_df.astype(float),
-                annot=True,
-                fmt=".1f",
-                cmap="RdYlGn",
-                center=10,
-                vmin=-10,
-                vmax=30,
-                cbar_kws={"label": "IRR (%)"},
-                annot_kws={"size": 8},
-                ax=ax_sens,
-            )
-            ax_sens.set_xlabel("ADR (일평균요금)")
-            ax_sens.set_ylabel("점유율", rotation=0, labelpad=35, va="center")
-            ax_sens.set_title("점유율 × ADR 민감도 분석 (STR IRR %)", pad=10)
-            ax_sens.set_yticklabels(ax_sens.get_yticklabels(), rotation=0)
-            plt.tight_layout()
-
-        st.pyplot(fig_sens)
-        plt.close(fig_sens)
-    except Exception as e:
-        st.warning(f"민감도 분석 실패: {e}")
-
-    st.markdown("---")
-
-    # 법적 리스크
-    st.markdown("### ⚖️ 법적 리스크 (중요!)")
+    st.subheader("⚖️ 오피스텔 단기임대 법적 리스크")
 
     st.warning(
-        "⚠️ **법적 리스크**: 오피스텔은 법적으로 '업무시설'이라 외국인관광도시민박업 등록 대상이 아님. "
-        "월세 임차 후 전대 영업은 '실제 거주' 요건 위반. **현행법상 상당수가 불법 운영**입니다. "
-        "서울 불법 공유숙소 약 1.3만 개 추정."
+        "⚠️ **핵심 요약**: 오피스텔은 법적으로 '업무시설'입니다. "
+        "현행법상 에어비앤비 영업은 상당수가 불법입니다. "
+        "서울 불법 공유숙소 추정 약 1.3만 개."
     )
 
-    st.info(
-        "ℹ️ **합법 경로**: \n"
-        "1. ICT 규제 샌드박스 특례 (위홈 등, 연 180일 내국인 한정)\n"
-        "2. 침구류 제외한 시간제 공간대여업\n\n"
-        "**출처**: 관광진흥법 시행령, 공중위생관리법"
+    st.markdown("#### 왜 문제가 되나?")
+    st.markdown(
+        "- 오피스텔 = 건축법상 업무시설 → 공중위생관리법상 숙박업 등록 **불가**\n"
+        "- 월세 계약 후 에어비앤비 운영 = '실제 거주' 요건 위반 (전대 금지)\n"
+        "- 적발 시: 과태료·영업정지·임대차 계약 해지 가능"
     )
 
-    st.markdown("---")
-
+    st.markdown("#### 합법으로 운영하려면?")
     st.info(
-        "💡 **투자 시 유의사항**:\n"
-        "- 단속 리스크: 과태료·영업정지 가능\n"
-        "- 임대차 계약: 전대 금지 조항 확인 필수\n"
-        "- 건물주 동의: 단기임대 허용 여부 사전 확인\n"
-        "- 보험: 일반 주택보험은 미적용, 별도 가입 필요"
+        "1. **ICT 규제 샌드박스 특례** — 위홈 등 등록 플랫폼 이용, 연 180일 이내, 내국인 한정\n"
+        "2. **시간제 공간대여업** — 침구류를 제공하지 않는 형태로 운영\n\n"
+        "출처: 관광진흥법 시행령, 공중위생관리법"
+    )
+
+    st.markdown("#### 투자 전 체크리스트")
+    st.info(
+        "- 임대차 계약서에 **전대 금지 조항**이 있는지 확인\n"
+        "- 건물주(임대인)에게 단기임대 허용 여부 **사전 협의**\n"
+        "- 일반 주택보험은 미적용 → 숙박업 전용 보험 별도 가입 필요\n"
+        "- 서울·제주는 단속 강화 추세 — 지자체별 리스크 상이"
     )
