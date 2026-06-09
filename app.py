@@ -420,15 +420,18 @@ with tab2:
             help="40~80% 범위. LTV가 높을수록 자기자본은 줄지만 원리금 부담이 커집니다.",
         ) / 100
         _cur_loan_rate = _bok.get("은행 대출금리", {}).get("value")
+        # BOK 실측값을 슬라이더 0.1% 단위로 반올림. 없으면 보수적 기본값 4.5% 사용.
+        _default_loan_rate = round(_cur_loan_rate * 10) / 10 if _cur_loan_rate else 4.5
         _loan_rate_hint = (
-            f"2.0~8.0% 범위. 현재 예금은행 평균 대출금리 {_cur_loan_rate:.2f}% 참고 (한국은행 ECOS)."
+            f"2.0~8.0% 범위. 기본값은 한국은행 ECOS 예금은행 대출금리 {_cur_loan_rate:.2f}% 기준 "
+            f"(기준일: {_fmt_cycle(_bok.get('은행 대출금리', {}).get('date', ''))})."
             if _cur_loan_rate else "2.0~8.0% 범위. 현재 금리 또는 보수적 시나리오를 입력하세요."
         )
         user_loan_rate = st.slider(
             "대출금리 (%)",
             2.0,
             8.0,
-            4.5,
+            _default_loan_rate,
             0.1,
             help=_loan_rate_hint,
         ) / 100
