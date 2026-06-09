@@ -86,7 +86,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-if _bok:
+if "_error" in _bok:
+    st.caption(f"⚠️ BOK 지표 오류: {_bok['_error']}")
+elif _bok:
     _bc1, _bc2, _bc3, _bc4 = st.columns(4)
     for _col, _label in zip(
         [_bc1, _bc2, _bc3, _bc4],
@@ -110,7 +112,7 @@ if _bok:
             _col.metric(_label, _fmt_fn(_d["value"]))
             _col.caption(f"기준일: {_fmt_cycle(_d['date'])} · {_d['unit']}")
 else:
-    st.caption("한국은행 ECOS 지표를 불러오지 못했습니다. API 키를 확인하세요.")
+    st.caption("⚠️ BOK_API_KEY 미설정: Streamlit Cloud Secrets에 BOK_API_KEY를 추가하세요.")
 
 st.markdown("---")
 

@@ -35,19 +35,19 @@ def get_investment_indicators() -> dict:
     Returns
     -------
     dict : label → {"value": float, "unit": str, "date": str}
-           API 실패 또는 키 미설정 시 빈 dict 반환.
+           오류 발생 시 {"_error": 오류메시지} 반환.
     """
     key = _load_bok_api_key()
     if not key:
-        return {}
+        return {"_error": "BOK_API_KEY가 설정되지 않았습니다. Streamlit Cloud Secrets 또는 .env를 확인하세요."}
 
     url = f"https://ecos.bok.or.kr/api/KeyStatisticList/{key}/json/kr/1/101"
     try:
         resp = requests.get(url, timeout=10)
         resp.raise_for_status()
         rows = resp.json().get("KeyStatisticList", {}).get("row", [])
-    except Exception:
-        return {}
+    except Exception as e:
+        return {"_error": f"API 호출 실패: {e}"}
 
     lookup = {r["KEYSTAT_NAME"]: r for r in rows}
     result = {}
