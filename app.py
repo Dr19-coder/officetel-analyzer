@@ -663,7 +663,7 @@ with tab3:
     try:
         sensitivity_df = run_sensitivity_analysis(sens_params, sens_mortgage, mode="str")
 
-        fig_sens, ax_sens = plt.subplots(figsize=(10, 6))
+        fig_sens, ax_sens = plt.subplots(figsize=(7, 4))
         sns.heatmap(
             sensitivity_df.astype(float),
             annot=True,
@@ -676,8 +676,9 @@ with tab3:
             ax=ax_sens,
         )
         ax_sens.set_xlabel("ADR (일평균요금)")
-        ax_sens.set_ylabel("점유율")
+        ax_sens.set_ylabel("점유율", rotation=0, labelpad=35, va="center")
         ax_sens.set_title("점유율 × ADR 민감도 분석 (STR IRR %)")
+        ax_sens.set_yticklabels(ax_sens.get_yticklabels(), rotation=0)
 
         st.pyplot(fig_sens)
         plt.close(fig_sens)
