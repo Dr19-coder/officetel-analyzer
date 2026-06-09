@@ -9,14 +9,21 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 from datetime import datetime
 from typing import Optional
-from dotenv import load_dotenv
 
 
-# .env 파일 로드
-load_dotenv()
+def _load_api_key() -> str:
+    """st.secrets(Streamlit Cloud) → .env(로컬) 순으로 API 키를 로드한다."""
+    try:
+        import streamlit as st
+        return st.secrets["DATA_GO_KR_KEY"]
+    except Exception:
+        from dotenv import load_dotenv
+        load_dotenv()
+        return os.getenv("DATA_GO_KR_KEY", "")
+
 
 # API 설정
-API_KEY = os.getenv("DATA_GO_KR_KEY")
+API_KEY = _load_api_key()
 BASE_URL_TRADE = "https://apis.data.go.kr/1613000/RTMSDataSvcOffiTrade/getRTMSDataSvcOffiTrade"
 BASE_URL_RENT = "https://apis.data.go.kr/1613000/RTMSDataSvcOffiRent/getRTMSDataSvcOffiRent"
 

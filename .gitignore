@@ -33,6 +33,9 @@ Thumbs.db
 # Claude Code
 .claude/
 
+# Streamlit secrets (실제 키는 커밋 금지)
+.streamlit/secrets.toml
+
 # 수업자료 (배포 불필요)
 reference/
 
