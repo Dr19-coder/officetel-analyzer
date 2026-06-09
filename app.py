@@ -622,8 +622,17 @@ with tab2:
 with tab3:
     st.subheader("🔥 민감도 분석 & 법적 리스크")
 
-    st.markdown("### 📉 점유율 × ADR 민감도 (IRR %)")
-    st.caption("점유율과 ADR 변화에 따른 STR IRR 변동 - 붉은색일수록 고수익")
+    st.markdown("### 📉 점유율 × ADR 민감도 분석 (STR IRR %)")
+
+    st.info(
+        "**이 표 읽는 법**\n\n"
+        "- **가로축**: 탭2에서 입력한 ADR 기준으로 ±범위의 요금 시나리오\n"
+        "- **세로축**: 연평균 점유율 (30% ~ 95%)\n"
+        "- **숫자**: 해당 조합에서 계산된 STR IRR(%) — 탭2의 매입가·대출 조건 기준\n\n"
+        "**색상 기준** → 🟢 초록(IRR 15% 이상, 추천) / 🟡 노랑(5~15%, 신중) / 🔴 빨강(5% 미만, 비추천)\n\n"
+        "**활용법**: 내 예상 ADR과 점유율이 교차하는 셀을 찾아 색상을 확인하세요. "
+        "주변 셀이 전부 빨간색이면 가정이 조금만 빗나가도 손실 — 리스크가 큰 투자입니다."
+    )
 
     # 민감도 분석용 파라미터 (탭2 입력값 사용 또는 기본값)
     sens_purchase = st.session_state.get("user_purchase_price", 300_000_000)
@@ -636,8 +645,9 @@ with tab3:
     sens_setup_cost = st.session_state.get("user_setup_cost", 7_000_000)
 
     st.caption(
-        f"현재 기준: 매입가 {sens_purchase/100_000_000:.2f}억, "
-        f"ADR {sens_adr/10000:.1f}만원, 셋업비 {sens_setup_cost/10000:.0f}만원"
+        f"기준값: 매입가 {sens_purchase/100_000_000:.2f}억 · "
+        f"ADR {sens_adr/10000:.1f}만원 · 셋업비 {sens_setup_cost/10000:.0f}만원 "
+        "(탭2 입력값 반영, 미입력 시 기본값 사용)"
     )
 
     sens_params = {
@@ -663,22 +673,27 @@ with tab3:
     try:
         sensitivity_df = run_sensitivity_analysis(sens_params, sens_mortgage, mode="str")
 
-        fig_sens, ax_sens = plt.subplots(figsize=(7, 4))
-        sns.heatmap(
-            sensitivity_df.astype(float),
-            annot=True,
-            fmt=".1f",
-            cmap="RdYlGn",
-            center=10,
-            vmin=-10,
-            vmax=30,
-            cbar_kws={"label": "IRR (%)"},
-            ax=ax_sens,
-        )
-        ax_sens.set_xlabel("ADR (일평균요금)")
-        ax_sens.set_ylabel("점유율", rotation=0, labelpad=35, va="center")
-        ax_sens.set_title("점유율 × ADR 민감도 분석 (STR IRR %)")
-        ax_sens.set_yticklabels(ax_sens.get_yticklabels(), rotation=0)
+        with plt.style.context("dark_background"):
+            fig_sens, ax_sens = plt.subplots(figsize=(7, 4))
+            fig_sens.patch.set_facecolor("#0e1117")
+            ax_sens.set_facecolor("#0e1117")
+            sns.heatmap(
+                sensitivity_df.astype(float),
+                annot=True,
+                fmt=".1f",
+                cmap="RdYlGn",
+                center=10,
+                vmin=-10,
+                vmax=30,
+                cbar_kws={"label": "IRR (%)"},
+                annot_kws={"size": 8},
+                ax=ax_sens,
+            )
+            ax_sens.set_xlabel("ADR (일평균요금)")
+            ax_sens.set_ylabel("점유율", rotation=0, labelpad=35, va="center")
+            ax_sens.set_title("점유율 × ADR 민감도 분석 (STR IRR %)", pad=10)
+            ax_sens.set_yticklabels(ax_sens.get_yticklabels(), rotation=0)
+            plt.tight_layout()
 
         st.pyplot(fig_sens)
         plt.close(fig_sens)
