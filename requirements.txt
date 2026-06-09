@@ -1,0 +1,10 @@
+streamlit>=1.30
+numpy
+numpy-financial
+pandas
+seaborn
+matplotlib
+python-dotenv
+requests
+python-dateutil
+openpyxl
