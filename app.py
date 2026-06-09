@@ -26,10 +26,26 @@ from judge_property import judge_property
 
 # ── 한글 폰트 설정 (Windows: Malgun Gothic / Linux·Cloud: NanumGothic) ──
 import platform
-if platform.system() == "Windows":
-    plt.rcParams["font.family"] = "Malgun Gothic"
-else:
-    plt.rcParams["font.family"] = "NanumGothic"
+import matplotlib.font_manager as fm
+
+def _setup_korean_font():
+    if platform.system() == "Windows":
+        plt.rcParams["font.family"] = "Malgun Gothic"
+        return
+    # Linux(Streamlit Cloud): 파일 직접 로드 후 등록
+    import os
+    nanum_path = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
+    if os.path.exists(nanum_path):
+        fm.fontManager.addfont(nanum_path)
+        plt.rcParams["font.family"] = fm.FontProperties(fname=nanum_path).get_name()
+    else:
+        # 폰트 매니저 캐시 무시하고 재탐색
+        fm._load_fontmanager(try_read_cache=False)
+        names = {f.name for f in fm.fontManager.ttflist}
+        if "NanumGothic" in names:
+            plt.rcParams["font.family"] = "NanumGothic"
+
+_setup_korean_font()
 plt.rcParams["axes.unicode_minus"] = False
 
 # ── 페이지 설정 ─────────────────────────────────────────────
