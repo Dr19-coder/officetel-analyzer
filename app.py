@@ -10,7 +10,6 @@ import inspect
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
@@ -653,58 +652,45 @@ with tab2:
         }
 
         try:
-            import matplotlib.patches as mpatches
             _sensitivity_df = run_sensitivity_analysis(_sens_params, _sens_mortgage, mode="str")
 
             # 내 시나리오 위치 계산
             _occ_range = np.arange(0.30, 1.00, 0.05)
             _row_idx = int(np.argmin(np.abs(_occ_range - user_occupancy)))
-            _col_idx = 4  # base ADR = 100% 열 (adr*0.6부터 시작해 5번째)
+            _col_idx = 4  # base ADR = 100% 열
 
-            with plt.style.context("dark_background"):
-                fig_risk = plt.figure(figsize=(7, 5))
-                gs = fig_risk.add_gridspec(2, 1, height_ratios=[12, 1], hspace=0.55)
-                ax_risk = fig_risk.add_subplot(gs[0])
-                ax_cbar = fig_risk.add_subplot(gs[1])
-                fig_risk.patch.set_facecolor("#0e1117")
-                ax_risk.set_facecolor("#0e1117")
-                ax_cbar.set_facecolor("#0e1117")
-                sns.heatmap(
-                    _sensitivity_df.astype(float),
-                    annot=True,
-                    fmt=".1f",
-                    cmap="RdYlGn",
-                    center=10,
-                    vmin=-10,
-                    vmax=30,
-                    cbar=False,
-                    annot_kws={"size": 8},
-                    ax=ax_risk,
+            # 내 시나리오 셀 테두리 강조
+            def _mark_user_cell(df):
+                styles = pd.DataFrame("", index=df.index, columns=df.columns)
+                styles.iloc[_row_idx, _col_idx] = (
+                    "outline: 3px solid #4fc3f7; outline-offset: -3px; font-weight: bold;"
                 )
-                ax_risk.add_patch(mpatches.Rectangle(
-                    (_col_idx, _row_idx), 1, 1,
-                    fill=False, edgecolor="white", lw=2.5, zorder=5,
-                ))
-                ax_risk.set_xlabel("1박 요금 시나리오")
-                ax_risk.set_ylabel("연 예약률", rotation=0, labelpad=40, va="center")
-                ax_risk.set_title("리스크 지형도 (흰 테두리 = 내 시나리오)", pad=10)
-                ax_risk.set_yticklabels(ax_risk.get_yticklabels(), rotation=0)
-                # 가로 컬러바 — 빨강(손실) 왼쪽, 초록(수익) 오른쪽
-                cb = fig_risk.colorbar(
-                    ax_risk.collections[0], cax=ax_cbar, orientation="horizontal"
-                )
-                cb.set_label(
-                    "← 손실 (빨강)          연수익률(IRR) %          수익 (초록) →",
-                    color="white", fontsize=8,
-                )
-                ax_cbar.xaxis.set_tick_params(labelcolor="white", labelsize=7)
+                return styles
 
-            st.pyplot(fig_risk)
-            plt.close(fig_risk)
+            styled_map = (
+                _sensitivity_df.style
+                .background_gradient(cmap="RdYlGn", axis=None, vmin=-10, vmax=30)
+                .apply(_mark_user_cell, axis=None)
+                .format("{:.1f}")
+            )
+
+            # 범례 + 테이블을 나란히 배치
+            st.markdown(
+                "<small>🔴 빨강 = 손실&nbsp;&nbsp;&nbsp;"
+                "🟡 노랑 = 본전 수준&nbsp;&nbsp;&nbsp;"
+                "🟢 초록 = 수익 우수&nbsp;&nbsp;&nbsp;"
+                "│&nbsp;&nbsp;&nbsp;**파란 테두리 = 내 시나리오**</small>",
+                unsafe_allow_html=True,
+            )
+
+            tbl_col, _ = st.columns([2, 1])
+            with tbl_col:
+                st.dataframe(styled_map, use_container_width=True)
+
             irr_str = f"{str_irr:.1f}%" if str_irr not in [None, -100.0] else "전손실"
             st.caption(
-                f"내 시나리오: 요금 {user_adr/10000:.1f}만원, 예약률 {user_occupancy*100:.0f}% → 연수익률 {irr_str}  |  "
-                f"초록 영역이 넓을수록 웬만큼 빗나가도 수익이 나는 안전한 투자입니다."
+                f"내 시나리오: 요금 {user_adr/10000:.1f}만원 · 예약률 {user_occupancy*100:.0f}% → 연수익률 {irr_str}  |  "
+                "초록 영역이 넓을수록 가정이 빗나가도 수익이 나는 안전한 투자"
             )
         except Exception as e:
             st.warning(f"리스크 지형도 계산 실패: {e}")
