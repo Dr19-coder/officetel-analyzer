@@ -11,8 +11,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import colors as mcolors
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+
+from bok_fetcher import get_investment_indicators
 
 from calculations import (
     calculate_str_noi,
@@ -56,6 +58,61 @@ st.set_page_config(
 )
 st.title("🏢 오피스텔 에어비앤비 투자 판정 도구")
 st.caption("📊 실측 데이터 기반 단기임대 vs 장기임대 수익성 비교")
+
+
+# ── 한국은행 실시간 금융 지표 패널 ────────────────────────────
+@st.cache_data(ttl=3600)
+def load_bok_indicators() -> dict:
+    return get_investment_indicators()
+
+
+def _fmt_cycle(cycle: str) -> str:
+    """ECOS CYCLE 코드를 읽기 쉬운 날짜 문자열로 변환."""
+    c = str(cycle).strip()
+    if len(c) == 8 and c.isdigit():
+        return f"{c[:4]}-{c[4:6]}-{c[6:]}"
+    if len(c) == 6 and c.isdigit():
+        return f"{c[:4]}-{c[4:]}"
+    return c  # "2026Q1", "2025" 등 그대로
+
+
+kr_now = datetime.utcnow() + timedelta(hours=9)
+_bok = load_bok_indicators()
+
+st.markdown("---")
+st.markdown(
+    f"#### 📈 실시간 금융 지표 &nbsp;<small style='color:gray;font-weight:normal;'>"
+    f"한국은행 ECOS · KR 시각 {kr_now.strftime('%Y-%m-%d %H:%M')} · 1시간 캐시</small>",
+    unsafe_allow_html=True,
+)
+
+if _bok:
+    _bc1, _bc2, _bc3, _bc4 = st.columns(4)
+    for _col, _label in zip(
+        [_bc1, _bc2, _bc3, _bc4],
+        ["기준금리", "은행 대출금리", "국고채(3년)", "원/달러"],
+    ):
+        if _label in _bok:
+            _d = _bok[_label]
+            _val = _d["value"]
+            _date_str = _fmt_cycle(_d["date"])
+            _fmt = f"{_val:,.0f}원" if _label == "원/달러" else f"{_val:.2f}%"
+            _col.metric(_label, _fmt)
+            _col.caption(f"기준일: {_date_str}")
+
+    _br1, _br2, _br3 = st.columns([1, 1, 2])
+    for _col, _label, _fmt_fn in [
+        (_br1, "주택매매가격지수", lambda v: f"{v:.1f}"),
+        (_br2, "소비자물가지수",   lambda v: f"{v:.2f}"),
+    ]:
+        if _label in _bok:
+            _d = _bok[_label]
+            _col.metric(_label, _fmt_fn(_d["value"]))
+            _col.caption(f"기준일: {_fmt_cycle(_d['date'])} · {_d['unit']}")
+else:
+    st.caption("한국은행 ECOS 지표를 불러오지 못했습니다. API 키를 확인하세요.")
+
+st.markdown("---")
 
 # ── 지역 데이터 로드 ─────────────────────────────────────────
 @st.cache_data
@@ -360,13 +417,18 @@ with tab2:
             60,
             help="40~80% 범위. LTV가 높을수록 자기자본은 줄지만 원리금 부담이 커집니다.",
         ) / 100
+        _cur_loan_rate = _bok.get("은행 대출금리", {}).get("value")
+        _loan_rate_hint = (
+            f"2.0~8.0% 범위. 현재 예금은행 평균 대출금리 {_cur_loan_rate:.2f}% 참고 (한국은행 ECOS)."
+            if _cur_loan_rate else "2.0~8.0% 범위. 현재 금리 또는 보수적 시나리오를 입력하세요."
+        )
         user_loan_rate = st.slider(
             "대출금리 (%)",
             2.0,
             8.0,
             4.5,
             0.1,
-            help="2.0~8.0% 범위. 현재 금리 또는 보수적 시나리오를 입력하세요.",
+            help=_loan_rate_hint,
         ) / 100
         user_loan_years = st.number_input(
             "대출기간 (년)",
