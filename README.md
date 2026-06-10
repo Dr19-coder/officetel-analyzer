@@ -57,6 +57,66 @@ ATCF = BTCF - 소득세                  ATCF = BTCF - 소득세
 
 ---
 
+## 📋 프로포마 & NPV/IRR — 엑셀 함수를 Python으로 구현
+
+> 교과서는 Excel의 `PMT` · `NPV` · `IRR` 함수로 가치평가를 구현하지만,  
+> 이 프로젝트는 동일한 로직을 **Python 코드**로 구현합니다.
+
+### 1. CPM 원리금 (Excel `PMT` → `mortgage.py`)
+
+```
+Excel:  =PMT(연이율/12, 개월수, -원금) × 12
+
+Python: annual_debt_service(principal, annual_rate, loan_years)
+        → principal × (r/12) × (1+r/12)^n / ((1+r/12)^n − 1) × 12
+```
+
+### 2. 연도별 프로포마 (Excel 행 → `calculations.py` DataFrame)
+
+`calculate_dcf_irr()` 는 아래 구조의 DataFrame을 연도별로 자동 생성합니다:
+
+| 연도 | NOI | DS (원리금) | 이자 | 감가상각 | BTCF | 세금 | ATCF | 매도수익 | 총 CF |
+|------|-----|-------------|------|----------|------|------|------|----------|-------|
+| 0 | — | — | — | — | — | — | — | — | **−실투자금** |
+| 1 | NOI₁ | DS | 이자₁ | Depr | NOI−DS | Tax₁ | BTCF−Tax | 0 | ATCF₁ |
+| ⋮ | ⋮ | ⋮ | ⋮ | ⋮ | ⋮ | ⋮ | ⋮ | 0 | ⋮ |
+| n | NOIₙ | DS | 이자ₙ | Depr | NOI−DS | Taxₙ | BTCFₙ−Taxₙ | **매각CF** | ATCFₙ + 매각 |
+
+```python
+# 세금 계산 (Excel 수식과 동일한 로직)
+taxable_income = NOI − 감가상각 − 이자          # 과세소득
+tax            = max(taxable_income, 0) × 세율   # 소득세 (음수 과세 없음)
+BTCF           = NOI − DS                        # 세전현금흐름
+ATCF           = BTCF − tax                      # 세후현금흐름
+
+# 매각 현금흐름 (보유기간 마지막 해)
+terminal_value = NOI_{n+1} / (Cap Rate + 0.5%)   # 매각가 (Cap Rate법)
+remaining_loan = loan_balance_at(원금, 금리, 기간, n)  # 대출 잔액
+capital_gain   = terminal_value − purchase_price
+sale_CF        = terminal_value − remaining_loan − max(capital_gain, 0) × 세율
+```
+
+### 3. NPV (Excel `NPV` → `numpy_financial`)
+
+```
+Excel:  =NPV(할인율, CF₁:CFₙ) + CF₀
+
+Python: npf.npv(cap_rate, [−equity, ATCF₁, ..., ATCFₙ + sale_CF])
+```
+
+### 4. IRR (Excel `IRR` → `numpy_financial`)
+
+```
+Excel:  =IRR(CF₀:CFₙ)
+
+Python: irr = npf.irr([−equity, ATCF₁, ..., ATCFₙ + sale_CF]) × 100
+```
+
+> 전 기간 현금흐름이 모두 음수이면 `IRR = −100%` ("전손실")로 명시 표시  
+> (`NaN` 방치 없음 — numpy_financial 수렴 실패 케이스도 처리)
+
+---
+
 ## 📊 주요 가정값
 
 | 항목 | 값 | 출처 |
