@@ -1,0 +1,11 @@
+https://github.com/Dr19-coder/officetel-analyzer
+
+https://www.data.go.kr/data/15126475/openapi.do
+
+https://www.data.go.kr/data/15126464/openapi.do
+
+https://ecos.bok.or.kr/api/#/
+
+https://airbtics.com/annual-airbnb-revenue-in-busan-south-korea/-ko
+
+https://officetel-analyzer.streamlit.app/

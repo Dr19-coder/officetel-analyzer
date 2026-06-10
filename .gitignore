@@ -36,8 +36,9 @@ Thumbs.db
 # Streamlit secrets (실제 키는 커밋 금지)
 .streamlit/secrets.toml
 
-# 수업자료 (배포 불필요)
-reference/
+# 수업자료 (배포 불필요) — link_reference.txt만 예외
+reference/*
+!reference/link_reference.txt
 
 # Windows 장치파일
 NUL
